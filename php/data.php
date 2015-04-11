@@ -10,7 +10,6 @@
             }
 
             if ($x == 0) {
- //echo "3\r\n";
                 $index = 0;
                 $tmp["DATE_TIME"] = date("Y-m-d 00:00:00",strtotime($tmp["DATE_TIME"]));
                 $data[$index] = $tmp;
@@ -50,14 +49,14 @@
     } else {
         $dateStart = $_GET['date_start'];
     }
-//echo "Starting date: ".$dateStart."\r\n";
+    //echo "Starting date: ".$dateStart."\r\n";
 
     if ( !array_key_exists('date_end', $_GET) ) {
         $dateEnd = "2015/03/01";
     } else {
         $dateEnd = $_GET['date_end'];
     }
-//echo "Ending date: ".$dateEnd."\r\n";
+    //echo "Ending date: ".$dateEnd."\r\n";
 
     // is there any data to compare to?
     if ( array_key_exists('compare_to', $_GET) ) {
@@ -70,8 +69,8 @@
         $timeEnd = strtotime($dateEnd);
         $timeCmpEnd = strtotime($dateCompare, $timeEnd);
         $dateCmpEnd = date("Y/m/d", $timeCmpEnd);
-//echo "Compare to start date: ".$dateCmpStart."\r\n";
-//echo "Compare to end date: ".$dateCmpEnd."\r\n";
+        //echo "Compare to start date: ".$dateCmpStart."\r\n";
+        //echo "Compare to end date: ".$dateCmpEnd."\r\n";
     }
 
     // what circuits/accounts do I want data on?
@@ -87,7 +86,7 @@
         }
         $sql_circuits = $sql_circuits.") ";
     }
-//echo "Circuits: ".$sql_circuits."\r\n";
+    //echo "Circuits: ".$sql_circuits."\r\n";
 
     // time interval to use
     if ( !array_key_exists('interval', $_GET) ) {
@@ -95,13 +94,13 @@
     } else {
         $interval = $_GET['interval'];
     }
-//echo "Interval: ".$interval."\r\n";
+    //echo "Interval: ".$interval."\r\n";
 
-    // database administrative details
-    $username = "darfield_python"; 
-    $password = "1Python1!";   
+    // database administrative details, enter your specifics here
+    $username = "DB_USERNAME"; 
+    $password = "DB_PASSWORD";   
     $host = "localhost";
-    $database="darfield_development";
+    $database="DB_NAME";
     
     $server = mysql_connect($host, $username, $password);
     $connection = mysql_select_db($database, $server);
@@ -109,7 +108,7 @@
     $myquery = "
 SELECT `CIRCUIT`,`DATE_TIME`,`POWER_KWH` FROM `BCHYDRO_DATA` WHERE `DATE_TIME` BETWEEN '".$dateStart."' AND '".$dateEnd." 23:59'
 ".$sql_circuits." ORDER BY `CIRCUIT`,`DATE_TIME`";
-//echo "SQL QUERY: ".$myquery."\r\n";
+    //echo "SQL QUERY: ".$myquery."\r\n";
     $query = mysql_query($myquery);
     
     if ( ! $query ) {
@@ -121,7 +120,7 @@ SELECT `CIRCUIT`,`DATE_TIME`,`POWER_KWH` FROM `BCHYDRO_DATA` WHERE `DATE_TIME` B
         $myquery_cmp = "
 SELECT `CIRCUIT`,`DATE_TIME`,`POWER_KWH` FROM `BCHYDRO_DATA` WHERE `DATE_TIME` BETWEEN '".$dateCmpStart."' AND '".$dateCmpEnd." 23:59'
 ".$sql_circuits." ORDER BY `CIRCUIT`,`DATE_TIME`";
-//echo $myquery_cmp;
+        //echo $myquery_cmp;
         $query_cmp = mysql_query($myquery_cmp);
         if ( ! $query_cmp ) {
             echo mysql_error();
@@ -142,9 +141,6 @@ SELECT `CIRCUIT`,`DATE_TIME`,`POWER_KWH` FROM `BCHYDRO_DATA` WHERE `DATE_TIME` B
                 $cmp[] = mysql_fetch_assoc($query_cmp);
                 $cmp[$x]["CIRCUIT"] = $cmp[$x]["CIRCUIT"]." (".$_GET['compare_to'].")";
                 $cmp[$x]["DATE_TIME"] = $data[$x]["DATE_TIME"];
-//echo "CMP: ".$cmp;
-                //$data[$x]["CMP_POWER_KWH"] = $cmp["POWER_KWH"];
-                //$data[$x]["CMP_DATE_TIME"] = $cmp["DATE_TIME"];
             }
         }
     }
