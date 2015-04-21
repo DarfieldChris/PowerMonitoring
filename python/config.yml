@@ -1,0 +1,27 @@
+#
+# config.yml - configuration file for python script mqtt.py
+#
+
+
+Mqtt:
+    Server: localhost
+    #Server: 54.69.232.181
+    Port: 1883
+    Identity: pi
+    Topic: Minecraft
+
+#
+# LOGGING CONFIGURATION
+#
+# use with: logging.config.dictConfig(yaml.load(open('logging.yaml', 'r')))
+#
+# log_level ... can be one of DEBUG, INFO, WARNING, ERROR, NONE
+#
+ 
+# Formatters detailed here: 
+#   http://docs.python.org/2/library/logging.html#logrecord-attributes
+
+logging:
+    root:
+      level: INFO
+

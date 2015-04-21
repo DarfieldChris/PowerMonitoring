@@ -17,12 +17,20 @@
 #
 # See the project README.md for Copyright.
 
+#Standard Library Imports
 import sys, serial, select, time, datetime, logging, glob, socket, struct, csv, MySQLdb
 from threading import Thread
 from Queue import Queue
 from socket import AF_INET, SOCK_DGRAM
 
+#Third Party Imports
+
+#Local Application/Library Specific Imports
+import config
+import mqtt
+
 class UpdateDB(Thread):
+
     def __init__(self, queueResults, SQL_HOST = "localhost", SQL_USER = "user", SQL_PASSWD = "???", SQL_DB = "db"):
         Thread.__init__(self)
         self.queueResults = queueResults
@@ -36,24 +44,35 @@ class UpdateDB(Thread):
         while True :
             data = self.queueResults.get()
 
-            # Connect to the database
-            db = MySQLdb.connect(self.SQL_HOST,self.SQL_USER,self.SQL_PASSWD,self.SQL_DB)
+            try:
+                # Connect to the database
+                db = MySQLdb.connect(self.SQL_HOST,self.SQL_USER,self.SQL_PASSWD,self.SQL_DB)
 
-            # Setup a cursor object using cursor() method
-            cursor = db.cursor()
+                # Setup a cursor object using cursor() method
+                cursor = db.cursor()
 
-            # perform SQL action
-            cursor.execute("""INSERT INTO `BCHYDRO_DATA` (`CIRCUIT`,`DATE_TIME`,`POWER_KWH`) VALUES (%s,%s,%s)""", 
+                # perform SQL action
+                cursor.execute("""INSERT INTO `BCHYDRO_DATA` (`CIRCUIT`,`DATE_TIME`,`POWER_KWH`) VALUES (%s,%s,%s)""", 
                            (data[0],data[1],data[2],))
 
-            db.commit()
+                db.commit()
 
-            # close the mysql database connection
-            db.close()
+                # close the mysql database connection
+                db.close()
+
+                logging.info ("Updated database.")
+
+            except MySQLdb.Error, e:
+                # failed to add row to DB ... wait 10 min and try again
+                logging.warning(str(e))
+                self.queueResults.put(data)
+                time.sleep(10*60)
 
             self.queueResults.task_done()
 
 class Calc(Thread):
+    broadcast_queue = None
+
     def dataOpen(self):
         self.f = open(self.fileCSV, 'wt')
 
@@ -107,6 +126,10 @@ class Calc(Thread):
                 self.timeLastReading = _time
                 self.ampsLastReading = (float)(data[5])
 
+                # broadcast the most recent data if desired
+                if (self.broadcast_queue != None):
+                    self.broadcast_queue.put ([data[0], _time, data[5]])
+                
                 # log the raw current readings in a data file
                 if (_time > self.timeNextDay):
                     self.f.close()
@@ -199,16 +222,27 @@ if __name__ == "__main__":
         t -= TIME1970
         return t
 
+    # read YML config data
+    cfg = config.config()
+    
     # Setup logging
-    logging.basicConfig(level=logging.DEBUG,
-                        format='[%(levelname)s] (%(threadName)-10s) %(message)s',
-                        )
+    #logging.basicConfig(level=logging.DEBUG,
+    #                    format='[%(levelname)s] (%(threadName)-10s) %(message)s',
+    #                    )
+    cfg.setLogging()
 
     #logging.info("Current time is %s" % time.ctime(getNTPTime()).replace("  "," "))
 
     # create queues to pass data between the different threads
     queueArduino = Queue()
     queueDB = Queue()
+    queueMqttPub = Queue()
+
+    # Setup Mqtt client thread
+    mqtt_client = mqtt.mqtt(cfg)
+    mqtt_client.publish_queue = queueMqttPub
+    mqtt_client.daemon = True
+    mqtt_client.start()
 
     # setup Arduino thread
     baud = 9600
@@ -225,15 +259,16 @@ if __name__ == "__main__":
  
     # setup calculation thread
     threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB, timeRef = getNTPTime())
+    threadCalc.broadcast_queue = queueMqttPub
     threadCalc.daemon = True
     threadCalc.start()
 
     # setup database thread
     updateDB = UpdateDB(queueResults = queueDB, 
-                        SQL_HOST = "xxx",
-                        SQL_USER = "xxx",
-                        SQL_PASSWD = "xxx",
-                        SQL_DB = "xxx")
+                        SQL_HOST = "www.darfieldearthship.com",
+                        SQL_USER = "darfield_python",
+                        SQL_PASSWD = "1Python1!",
+                        SQL_DB = "darfield_development")
     updateDB.daemon = True
     updateDB.start()
 
