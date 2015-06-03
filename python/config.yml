@@ -7,8 +7,15 @@ Mqtt:
     Server: localhost
     #Server: 54.69.232.181
     Port: 1883
-    Identity: pi
-    Topic: Minecraft
+    Identity_pub: TDE_PUB
+    Identity_rcv: TDE_RCV
+    Topic: PMon
+
+SQL:
+    host: www.darfieldearthship.com
+    user: darfield_python
+    passwd: 1Python1!
+    db: darfield_development
 
 #
 # LOGGING CONFIGURATION

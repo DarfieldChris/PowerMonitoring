@@ -31,14 +31,16 @@ import mqtt
 
 class UpdateDB(Thread):
 
-    def __init__(self, queueResults, SQL_HOST = "localhost", SQL_USER = "user", SQL_PASSWD = "???", SQL_DB = "db"):
+    def __init__(self, cfg, queueResults ):
         Thread.__init__(self)
         self.queueResults = queueResults
 
-        self.SQL_HOST = SQL_HOST
-        self.SQL_USER = SQL_USER
-        self.SQL_PASSWD = SQL_PASSWD
-        self.SQL_DB = SQL_DB
+        self.cfg = cfg
+
+        cfg.setdefault("SQL.host", default = "localhost")
+        cfg.setdefault("SQL.user", default = "user")
+        cfg.setdefault("SQL.passwd", default = "???")
+        cfg.setdefault("SQL.db", default = "db")
 
     def run(self) :
         while True :
@@ -46,7 +48,7 @@ class UpdateDB(Thread):
 
             try:
                 # Connect to the database
-                db = MySQLdb.connect(self.SQL_HOST,self.SQL_USER,self.SQL_PASSWD,self.SQL_DB)
+                db = MySQLdb.connect(self.cfg["SQL.host"],self.cfg["SQL.user"],self.cfg["SQL.passwd"],self.cfg["SQL.db"])
 
                 # Setup a cursor object using cursor() method
                 cursor = db.cursor()
@@ -82,69 +84,89 @@ class Calc(Thread):
         self.writer.writerow(headers)
 
 
-    def __init__(self, queueReadings, queueResults, timeRef, fileCSV='data.csv'):
+    def __init__(self, queueReadings, queueResults, fileCSV='data.csv'):
         Thread.__init__(self)
 
         self.queueReadings = queueReadings
         self.queueResults = queueResults
-        self.timeRef = timeRef
+        #self.timeRef = timeRef
         self.fileCSV = fileCSV
-        self.timeNextDay = self.timeRef + 24*60*60
-        self.timeNextHour = (self.timeRef // (60*60))*3600 + 60*60
+        #self.timeNextDay = self.timeRef + 24*60*60
+        self.timeNextDay = time.time() + 24*60*60
+        #self.timeNextHour = (self.timeRef // (60*60))*3600 + 60*60
 
-        self.timeLastReading = 0
-        self.ampsLastReading = 0
-        self.kwhrs = 0
+        self.readings = {}
+        #self.timeLastReading = 0
+        #self.ampsLastReading = 0
+        #self.kwhrs = 0
 
         self.dataOpen()
-
 
     def run(self) :
         while True :
             str = self.queueReadings.get()
-            data = str.split(":");
+            data = str.split(":")
 
-            if ( len(data) == 6 ):
-                #logging.debug("valid data")
+            if ( (len(data) != 3 and len(data) != 6) or str[0] != '!' ):
+                logging.warning("invalid data: %s", str)
+            else:
+                _id = data[0][1:]
+                logging.debug("valid data: %s", _id)
 
                 # valid data - what do I do?
-                _time = (int)(data[1])/1000 + self.timeRef
+                #_time = (int)(data[1])/1000 + self.timeRef
+                _time = (int)(data[1])/1000 
+                _ts = time.time()
 
                 # accumulate kw-hrs
-                if ( self.timeLastReading > 0 ):
-                    self.kwhrs += self.ampsLastReading*(_time - self.timeLastReading)
-                    if (_time > self.timeNextHour):
+                timeLastReading = self.readings.get(_id + "tlr", 0) 
+                if ( timeLastReading > 0 ):
+                    #self.kwhrs += self.ampsLastReading*(_time - timeLastReading)
+                    self.readings[_id + "kwhrs"] = self.readings.get(_id + "kwhrs", 0.0) + self.readings.get(_id + "alr",0.0001)*(_time - timeLastReading)
+                    #if (_time > self.timeNextHour):
+                    _timeNextHour = self.readings[_id + "tnh"]
+                    #if (_time > _timeNextHour):
+                    if ( _ts > _timeNextHour):
                         # we have accumulated an hour of readings
                         # what should I do with it?
-                        t = datetime.datetime.fromtimestamp(self.timeNextHour - 3600 + 1).strftime('%Y-%m-%d %H:%M:%S')
-                        self.kwhrs = self.kwhrs*240/3600*.001
-                        self.queueResults.put([data[0],t,self.kwhrs])
+                        t = datetime.datetime.fromtimestamp(_timeNextHour - 3600 + 1).strftime('%Y-%m-%d %H:%M:%S')
+                        #self.kwhrs = self.kwhrs*240/3600*.001
+                        kwhrs = self.readings[_id + "kwhrs"]*240/3600*.001
+                        self.queueResults.put([_id,t,kwhrs])
 
                         # reset for the next hour of readings
-                        self.timeNextHour += 60*60
-                        self.kwhrs = 0
-                self.timeLastReading = _time
-                self.ampsLastReading = (float)(data[5])
+                        self.readings[_id + "tnh"] = _timeNextHour + 60*60
+                        self.readings[_id + "kwhrs"] = 0.0
+                else:
+                    self.readings[_id + "tnh"] = ( _ts // (60*60))*3600 + 60*60
 
                 # broadcast the most recent data if desired
                 if (self.broadcast_queue != None):
-                    self.broadcast_queue.put ([data[0], _time, data[5]])
+                    # Only broadcast if the reading has changed
+                    if (self.readings.get(_id + "alr", 0.0001) != (float)(data[2])):
+                        #self.broadcast_queue.put ([_id, _time, data[2]])
+                        self.broadcast_queue.put ([_id, _ts, data[2]])
                 
+                #self.timeLastReading = _time
+                self.readings[_id + "tlr"] = _time
+                #self.ampsLastReading = (float)(data[2])
+                self.readings[_id + "alr"] = (float)(data[2])
+
                 # log the raw current readings in a data file
-                if (_time > self.timeNextDay):
+                if ( _ts > self.timeNextDay):
                     self.f.close()
                     self.timeNextDay += 24*60*60
-                    dataOpen(self)
+                    self.dataOpen()
 
-                t = datetime.datetime.fromtimestamp(_time).strftime('%Y-%m-%d %H:%M:%S')
-                logging.info("Date: %s Irms: %s", t, self.ampsLastReading)
+                t = datetime.datetime.fromtimestamp(_ts).strftime('%Y-%m-%d %H:%M:%S')
+                logging.debug("Date: %s Irms(%s): %s", t, _id, data[2])
 
-                self.writer.writerow({ 'DATE_TIME':t,'Irms':data[5]})
+                self.writer.writerow({ 'DATE_TIME':t,'Irms':data[2]})
 
             self.queueReadings.task_done()
 
 class Arduino(Thread) :
-    def __init__(self, baud=9600, 
+    def __init__(self, baud=57600, 
                  ports=glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*"),
                  queue = None):
         Thread.__init__(self)
@@ -245,7 +267,7 @@ if __name__ == "__main__":
     mqtt_client.start()
 
     # setup Arduino thread
-    baud = 9600
+    baud = 57600
     if (len(sys.argv) > 1) :
         baud = int(sys.argv[1])
     logging.info("Will connect to arduino at %d baud" % baud)
@@ -258,17 +280,14 @@ if __name__ == "__main__":
     arduino = Arduino(baud=baud, ports=ports, queue=queueArduino)
  
     # setup calculation thread
-    threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB, timeRef = getNTPTime())
+    threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB)
+    #threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB, timeRef = getNTPTime())
     threadCalc.broadcast_queue = queueMqttPub
     threadCalc.daemon = True
     threadCalc.start()
 
     # setup database thread
-    updateDB = UpdateDB(queueResults = queueDB, 
-                        SQL_HOST = "www.darfieldearthship.com",
-                        SQL_USER = "darfield_python",
-                        SQL_PASSWD = "1Python1!",
-                        SQL_DB = "darfield_development")
+    updateDB = UpdateDB(cfg, queueResults = queueDB)
     updateDB.daemon = True
     updateDB.start()
 

@@ -8,6 +8,9 @@
 #  installed too)
 #
 #apt-get install python-mosquitto
+#
+# TODO:
+# - respond to request for current values
 
 #Standard Library Imports
 import sys
@@ -16,7 +19,6 @@ import os
 import logging
 import re
 from threading import Thread
-#import Queue
 from Queue import Queue
 from Queue import Empty
 
@@ -30,7 +32,6 @@ import config
 class mqtt(Thread):
     """Class to connect/communicate with MQTT server"""
 
-    on_message_obj = None
     publish_queue = None
 
     def __init__(self, cfg):
@@ -52,16 +53,14 @@ class mqtt(Thread):
         # Figure out the details of the MQTT Server to talk to
         cfg.setdefault("Mqtt.Server", default = "localhost") 
         cfg.setdefault("Mqtt.Port", default = "1883")
-        cfg.setdefault("Mqtt.Identity", default = "xxx")
+        cfg.setdefault("Mqtt.Identity_pub", default = "xxx_PUB")
+        cfg.setdefault("Mqtt.Identity_rcv", default = "xxx_RCV")
         #self.topicheader = topicheader+ '/' + self.ident
         cfg.setdefault("Mqtt.Topic", default = "xxx")
 
-        self.outputRegex = re.compile(cfg["Mqtt.Topic"] + "/output/(\d*)", re.IGNORECASE)
-
-	self.logger.info("Listening for MQQT messages:  %s/output/(\d*)", cfg["Mqtt.Topic"])
-        
         # setup as MQQT client
-        self.mos = paho.Client(cfg["Mqtt.Identity"])
+        self.mos = paho.Client(cfg["Mqtt.Identity_pub"])
+        self.mos.will_set(cfg["Mqtt.Topic"] +"/" +  cfg["Mqtt.Identity_pub"] + "/DOWN",0)
         self.mos.on_connect = self.on_connect
         self.mos.on_disconnect = self.on_disconnect
         self.mos.on_message = self.on_message # register for callback
@@ -69,6 +68,9 @@ class mqtt(Thread):
         while (self.connect() == False ):
             self.logger.info ("Trying to connect again ...")
             time.sleep(5)
+
+        # storage for latest data points
+        self.data_points = {}
         
     #
     # Method: connect
@@ -117,9 +119,13 @@ class mqtt(Thread):
                 logging.debug("Item in queue ...")
                 #Opt 1: Handle task here and call q.task_done()
                 strHeader = self.cfg["Mqtt.Topic"] + "/" + \
-                            self.cfg["Mqtt.Identity"] + "/" + pub[0]
+                            self.cfg["Mqtt.Identity_pub"] + "/" + \
+                            pub[0] + "/" + str(pub[1])
                 self.mos.publish(strHeader, pub[2])
                 self.publish_queue.task_done()
+
+                # Store last readings in case anybody asks
+                self.data_points[pub[0]] = pub
 
                 logging.debug("Published msg: %s", strHeader)
 
@@ -135,9 +141,17 @@ class mqtt(Thread):
 
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
-        self.mos.subscribe(self.cfg["Mqtt.Topic"] + "/output/+", 0) # get all messages for me
+        _str = self.cfg["Mqtt.Topic"] + "/" + self.cfg["Mqtt.Identity_rcv"] + "/" + "current"
+        self.mos.subscribe(_str, 0) # get all messages for me
         #self.mos.subscribe("#", 0) # get all messages
-        self.logger.info("subscribed to %s/output/+", self.cfg["Mqtt.Topic"])
+        self.logger.info("subscribed to %s", _str)
+
+        # Set a will so that DOWN will be sent if we die and send an 'UP' message now
+        _strHeader = self.cfg["Mqtt.Topic"] + "/" + \
+                    self.cfg["Mqtt.Identity_pub"] 
+        self.mos.publish(_strHeader + "/UP",0)
+        
+        self.logger.info("Set will and published 'UP'")
 
     def on_disconnect(self, userdata, flags, rc):
         if (rc):    # unexpected disconnection ... try to reconnect
@@ -161,12 +175,22 @@ class mqtt(Thread):
     def on_message(self, xxx,  obj, msg):
         self.logger.info("Msg received: %s - %s", msg.topic, msg.payload)
         
-        rm = self.outputRegex.match( msg.topic )
+        #rm = self.outputRegex.match( msg.topic )
         
-        if rm != None:
-            if ( self.on_message_obj != None):
-                self.on_message_obj.trigger (rm.group(1), msg.payload)
-                
+        #if rm != None:
+
+        _str = self.cfg["Mqtt.Topic"] + "/" + \
+                        self.cfg["Mqtt.Identity_pub"] + "/"
+
+        # Send out an 'I AM ALIVE' ...
+        self.mos.publish(_str + "UP", 0);
+
+        # only respond to request for current values
+        for point in self.data_points:
+            pub = self.data_points[point]
+            strHeader = _str + pub[0] + "/" + str(pub[1])
+            self.logger.debug("Publishing(" + str(len(self.data_points)) +") " + strHeader + ": " + pub[2])
+            self.mos.publish(strHeader, pub[2])
 
         self.logger.debug("Finished")
 
@@ -188,9 +212,6 @@ if __name__ == '__main__':
     conn.publish_queue = queueMqttPub
     conn.daemon = True
     conn.start()
-
-    #io = gpio.gpio(cfg, conn)
-    #conn.on_message_obj = io
 
     xxx = 0
 
