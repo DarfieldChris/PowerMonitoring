@@ -4,7 +4,7 @@
 
 
 Mqtt:
-    Server: localhost
+    Server: 192.168.1.163
     #Server: 54.69.232.181
     Port: 1883
     Identity_pub: TDE_PUB
@@ -16,6 +16,9 @@ SQL:
     user: darfield_python
     passwd: 1Python1!
     db: darfield_development
+
+Arduino:
+    baud: 57600
 
 #
 # LOGGING CONFIGURATION

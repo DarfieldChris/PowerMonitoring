@@ -217,7 +217,8 @@ class Arduino(Thread) :
             if self.ser in inp :
                 line = self.ser.readline().strip()
                 logging.debug( "Arduino: %s" % line)
-                self.queue.put(line)
+                if (self.queue):
+                    self.queue.put(line)
 
           except serial.SerialException :
             self.ser = None
@@ -261,31 +262,13 @@ if __name__ == "__main__":
     queueDB = Queue()
     queueMqttPub = Queue()
 
-    # Setup Mqtt client thread
-    mqtt_client = mqtt.mqtt(cfg)
-    mqtt_client.publish_queue = queueMqttPub
-    mqtt_client.daemon = True
-    mqtt_client.start()
-
     # setup Arduino thread
 
     ports=glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*")
     logging.info("Will connect to Arduino using ports: %s" % ports)
 
-    arduino = Arduino(cfg, ports=ports, queue=queueArduino)
+    arduino = Arduino(cfg, ports=ports)
  
-    # setup calculation thread
-    threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB)
-    #threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB, timeRef = getNTPTime())
-    threadCalc.broadcast_queue = queueMqttPub
-    threadCalc.daemon = True
-    threadCalc.start()
-
-    # setup database thread
-    updateDB = UpdateDB(cfg, queueResults = queueDB)
-    updateDB.daemon = True
-    updateDB.start()
-
     # start main thread of execution
     try :
       arduino.run()
