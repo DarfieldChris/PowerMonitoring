@@ -174,23 +174,28 @@ class Arduino(Thread) :
         self.ports = ports
         self.ser = None
         self.queue = queue
+        self.cfg = cfg
 
     def _connect(self) :
+        logging.debug("Starting using " + str(self.cfg["Arduino.baud"]) + " baud ...")
         # Port may vary, so look for the right one:
         if not len(self.ports) :
             self.ports=glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*")
 
         for port in self.ports :
+            logging.debug("Trying port " + port)
             if self.ser : 
+                logging.debug("The port is already set.")
                 break
             try :
-                    self.ser = serial.Serial(port, self.cfg["Arduino.baud"], timeout=1)
-                    logging.info("Opened port %s" % port)
-                    break
+                logging.debug("Attempting to connect to " + port + " at " + str(self.cfg["Arduino.baud"]))
+                self.ser = serial.Serial(port, self.cfg["Arduino.baud"], timeout=1)
+                logging.info("Opened port %s" % port)
+                break
             except :
-                    logging.warn("Failed to open port %s" % port)
-                    self.ser = None
-                    pass
+                logging.warn("Failed to open port %s" % port)
+                self.ser = None
+                pass
         return self.ser
 
 
@@ -217,7 +222,8 @@ class Arduino(Thread) :
             if self.ser in inp :
                 line = self.ser.readline().strip()
                 logging.debug( "Arduino: %s" % line)
-                self.queue.put(line)
+                if (self.queue ):
+                    self.queue.put(line)
 
           except serial.SerialException :
             self.ser = None
