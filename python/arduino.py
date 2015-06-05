@@ -168,12 +168,13 @@ class Calc(Thread):
 class Arduino(Thread) :
     def __init__(self, cfg, 
                  ports=glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*"),
-                 queue = None):
+                 queueFromArduino = None, queueToArduino=None):
         Thread.__init__(self)
         cfg.setdefault("Arduino.baud", default = 9600)
         self.ports = ports
         self.ser = None
-        self.queue = queue
+        self.queueFrom = queueFromArduino
+        self.queueTo = queueToArduino
         self.cfg = cfg
 
     def _connect(self) :
@@ -218,12 +219,20 @@ class Arduino(Thread) :
                 line = sys.stdin.readline()
                 self.ser.write(line)
 
+            # Check for data in the inbound queue
+            if (self.queueTo and self.queueTo.qsize() > 0):
+                data = self.queueTo.get()
+                logging.debug("Sending to arduino: " + data[0] + ":" + data[1])
+                #self.ser.write(data[0]+':'+data[1]+'\n')
+                self.ser.write(data[0])
+                
+
             # check for Arduino output:
             if self.ser in inp :
                 line = self.ser.readline().strip()
                 logging.debug( "Arduino: %s" % line)
-                if (self.queue ):
-                    self.queue.put(line)
+                if (self.queueFrom ):
+                    self.queueFrom.put(line)
 
           except serial.SerialException :
             self.ser = None

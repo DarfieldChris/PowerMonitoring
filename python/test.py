@@ -68,13 +68,21 @@ if __name__ == "__main__":
     queueArduino = Queue()
     queueDB = Queue()
     queueMqttPub = Queue()
+    queueMqttOnMsg = Queue()
 
     # setup Arduino thread
 
     ports=glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*")
     logging.info("Will connect to Arduino using ports: %s" % ports)
 
-    ard = arduino.Arduino(cfg, ports=ports)
+    ard = arduino.Arduino(cfg, ports=ports, queueToArduino=queueMqttOnMsg)
+
+    # Setup Mqtt client thread
+    mqtt_client = mqtt.mqtt(cfg)
+    mqtt_client.publish_queue = queueMqttPub
+    mqtt_client.on_msg_queue = queueMqttOnMsg
+    mqtt_client.daemon = True
+    mqtt_client.start()
  
     # start main thread of execution
     try :

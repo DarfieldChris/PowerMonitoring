@@ -141,7 +141,8 @@ class mqtt(Thread):
 
         # Subscribing in on_connect() means that if we lose the connection and
         # reconnect then subscriptions will be renewed.
-        _str = self.cfg["Mqtt.Topic"] + "/" + self.cfg["Mqtt.Identity_rcv"] + "/" + "current"
+        #_str = self.cfg["Mqtt.Topic"] + "/" + self.cfg["Mqtt.Identity_rcv"] + "/current"
+        _str = self.cfg["Mqtt.Topic"] + "/" + self.cfg["Mqtt.Identity_rcv"] + "/#"
         self.mos.subscribe(_str, 0) # get all messages for me
         #self.mos.subscribe("#", 0) # get all messages
         self.logger.info("subscribed to %s", _str)
@@ -179,18 +180,23 @@ class mqtt(Thread):
         
         #if rm != None:
 
-        _str = self.cfg["Mqtt.Topic"] + "/" + \
+        _topic = msg.topic.split("/")
+        if ( _topic[len(_topic)-1] == "current" ):
+            _str = self.cfg["Mqtt.Topic"] + "/" + \
                         self.cfg["Mqtt.Identity_pub"] + "/"
 
-        # Send out an 'I AM ALIVE' ...
-        self.mos.publish(_str + "UP", 0);
+            # Send out an 'I AM ALIVE' ...
+            self.mos.publish(_str + "UP", 0);
 
-        # only respond to request for current values
-        for point in self.data_points:
-            pub = self.data_points[point]
-            strHeader = _str + pub[0] + "/" + str(pub[1])
-            self.logger.debug("Publishing(" + str(len(self.data_points)) +") " + strHeader + ": " + pub[2])
-            self.mos.publish(strHeader, pub[2])
+            # only respond to request for current values
+            for point in self.data_points:
+                pub = self.data_points[point]
+                strHeader = _str + pub[0] + "/" + str(pub[1])
+                self.logger.debug("Publishing(" + str(len(self.data_points)) +") " + strHeader + ": " + pub[2])
+                self.mos.publish(strHeader, pub[2])
+
+        elif ( self.on_msg_queue != None ):
+            self.on_msg_queue.put([_topic[len(_topic) -1], msg.payload])
 
         self.logger.debug("Finished")
 

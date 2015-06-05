@@ -18,7 +18,7 @@ SQL:
     db: darfield_development
 
 Arduino:
-    baud: 57600
+    baud: 9600
 
 #
 # LOGGING CONFIGURATION
@@ -33,5 +33,5 @@ Arduino:
 
 logging:
     root:
-      level: INFO
+      level: DEBUG
 
