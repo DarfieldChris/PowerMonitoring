@@ -1,0 +1,195 @@
+var mqtt;
+var reconnectTimeout = 5000;
+
+var mqttLogger = Logger.get('mqtt');
+
+window.wpd3.update["tab5"] = function (_idlist) {
+}
+
+function MQTTconnect() {
+        var msg = "Trying to connect ... " + mqtt_host +':' + mqtt_port;
+        mqttLogger.info(arguments.callee.name + ": " + msg);
+	updateStatus(msg, "images/transfer.jpeg");
+	    				
+        //mqtt = new Messaging.Client(
+        mqtt = new Paho.MQTT.Client(
+                        mqtt_host,
+                        mqtt_port,
+                        "web_" + parseInt(Math.random() * 100,
+                        10));
+        var options = {
+            timeout: 3,
+            useSSL: useTLS,
+            cleanSession: cleansession,
+            onSuccess: onConnect,
+            onFailure: function (message) {
+                window.wpd3.gauge.animateNetNotify(1, reconnectTimeout);
+
+                var msg = "Connection failed: " + message.errorMessage + ". Retrying";
+                mqttLogger.warn(arguments.callee.name + ": " + msg);
+                updateStatus(msg, "images/failed.jpeg");
+                setTimeout(MQTTconnect, reconnectTimeout);
+            }
+        };
+
+        mqtt.onConnectionLost = onConnectionLost;
+        mqtt.onMessageArrived = onMessageArrived;
+
+        if (username != null) {
+            options.userName = username;
+            options.password = password;
+        }
+        
+        mqttLogger.info(arguments.callee.name + ": Will connect to MQTT server using " +
+	                "Host="+ mqtt_host + 
+                        ", port=" + mqtt_port + 
+                        " TLS = " + useTLS + 
+                        " username=" + username + 
+                        " password=" + password);
+        mqtt.connect(options);
+}
+
+function onConnect() {
+        window.wpd3.gauge.endNetNotify();
+
+        var msg = 'Connected to ' + mqtt_host + ':' + mqtt_port;
+        mqttLogger.info(arguments.callee.name + ": " + msg);
+        updateStatus(msg, "images/connected.jpeg");
+
+        $('#server').val(mqtt_host);
+        $('#port').val(mqtt_port);
+
+        // Connection succeeded; subscribe to our topic
+        mqtt.subscribe(topic, {qos: 0});
+        $('#topic').val(topic);
+        
+        //publish('Minecraft/output/98', '1');
+}
+
+function publish(dest, mqtt_msg) {
+    var msg = "Updating image ..."
+    mqttLogger.info(arguments.callee.name + ": " + msg);
+    updateStatus(msg,"images/transfer.jpeg");
+    message = new Messaging.Message(mqtt_msg);
+    message.destinationName = dest;
+    mqtt.send(message); 
+};
+
+function updateStatus(text, img) {
+            //mqttLogger.debug(text);
+	    $('#statusIcon').attr("src", img);
+	    $('#status').val(text);
+}
+
+function onConnectionLost(responseObject) {
+        window.wpd3.gauge.animateNetNotify(1, reconnectTimeout);
+        setTimeout(MQTTconnect, reconnectTimeout);
+        var msg = "connection lost (" + responseObject.errorMessage + "). Reconnecting ...";
+        mqttLogger.warn(arguments.callee.name + ": " + msg);
+        updateStatus(msg, "images/failed.jpeg");
+}
+
+function onMessageArrived(message) {
+        var topic = message.destinationName;
+
+        mqttLogger.debug("%s: %s - %d", arguments.callee.name, 
+                         topic, message.payloadBytes.length);
+
+	if (message.payloadBytes.length > 250 ||
+        	message.payloadString === null || 
+        	!message.payloadString) {
+	        $('#ws').prepend('<li>' + topic + ' = ' + '[BINARY FILE?]' + '</li>');
+                var msg = "Image updated!";
+                mqttLogger.info(arguments.callee.name + ": " + msg);
+		updateStatus(msg, "images/connected.jpeg");
+        } else {
+                var res = topic.split("/");
+                var _id = res[res.length-1];
+        	var payload = parseFloat( message.payloadString );
+
+        	$('#ws').prepend('<li>' + topic + ' = ' + payload + '</li>');
+ 
+               try {
+                // have we got a record for  this id?
+                if ( typeof window.wpd3[_id] === "undefined")
+                {
+		    // NO ... need to create one
+                    window.wpd3[_id] = {};
+                    window.wpd3[_id].title = _id;
+                    window.wpd3[_id].subtitle = "???";
+                    window.wpd3[_id].ranges = [5,10,15];
+                }
+
+                // create the new data point (for historical trend)
+                var new_point = {};
+                new_point.date = new Date();
+                new_point.val  = payload;
+
+                // Even if we already have a record for the id is it initialized?
+                if ( typeof window.wpd3[_id].id === "undefined" )
+                {
+                    window.wpd3[_id].id = _id;
+                    window.wpd3[_id].visible = true;
+                    window.wpd3.idlist.push(window.wpd3[_id]);
+                    window.wpd3[_id].data = [];
+                    window.wpd3[_id].min_max_dates = [];
+                    window.wpd3[_id].min_max_dates[0] = new_point.date;
+                    window.wpd3[_id].min_max_dates[1] = new Date(new_point.date.getTime() +1*60*1000);
+                    window.wpd3[_id].max_val = 5.0;
+                }
+
+                // store the new data point
+                window.wpd3[_id].val = payload;
+                window.wpd3[_id].data.push(new_point);
+
+                // recalcualte min and max based on new data
+                if ( window.wpd3[_id].min_max_dates[0].getTime() > new_point.date.getTime() )
+                {
+                    window.wpd3[_id].min_max_dates[0] = new_point.date;
+                }
+
+                if ( window.wpd3[_id].min_max_dates[1].getTime() < new_point.date.getTime() )
+                {
+                    window.wpd3[_id].min_max_dates[1] = new Date(new_point.date.getTime() +1*60*1000);
+                }
+
+                if ( payload > window.wpd3[_id].max_val )
+                {
+                    window.wpd3[_id].max_val = payload + 5.0;
+                }
+                }
+                catch (err) {
+                    mqttLogger.error(arguments.callee.name + "(Setup Error): " + 
+                                     err + "\n" + err.stack);
+                }
+
+                mqttLogger.debug (arguments.callee.name + "(NEW DATA): " + 
+                                  _id + ": " + new_point.val + "(" + 
+                                  new_point.date + ")");
+                window.wpd3.gauge.update();
+
+                try {
+                    (window.wpd3.update[window.wpd3.active])([_id], window.wpd3.tabs[window.wpd3.active]);
+                }
+                catch (err) {
+                    //try {
+//console.log("XXX");
+                        //(window.wpd3.tabs[window.wpd3.active]).update(,[_id]);
+                    //}
+                    //catch (err)
+                    //{
+                        mqttLogger.error(arguments.callee.name + "(Update Error for " + 
+                                     window.wpd3.active + "): " + 
+                                     err + "\n" + err.stack);
+                    //}
+                }
+                mqttLogger.debug("%s: %s", arguments.callee.name, "Completed");
+        }
+};
+
+$(window).load(function() {
+        $('#server').val(mqtt_host);
+        $('#port').val(mqtt_port);
+
+       MQTTconnect();
+});

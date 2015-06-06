@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Robot Remote Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+
+<style>
+
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      margin: auto;
+      padding-top: 5px;
+      position: relative;
+      width: 960px;
+      width: 95%;
+    }
+
+
+    td, th {
+        padding: 1px 4px;
+    }
+
+#tabs {
+	border:1px solid #ccc; 
+	height:28px; 
+	background:#eff5f9;
+	padding-left: 40px;
+	padding-top:45px;
+	-moz-box-shadow: inset 0 -2px 2px #dadada;
+	-webkit-box-shadow:inset  0 -2px 2px #dadada;
+	box-shadow: inset 0 -2px 2px #dadada;
+	border-top-left-radius:4px;  
+	border-top-right-radius:4px;
+}
+#tabs li {
+	float:left; 
+	list-style:none; 
+	border-top:1px solid #ccc; 
+	border-left:1px solid #ccc; 
+	border-right:1px solid #ccc; 
+	margin-right:5px; 
+	border-top-left-radius:3px;  
+	border-top-right-radius:3px;
+	-moz-box-shadow: 0 -2px 2px #dadada;
+	-webkit-box-shadow:  0 -2px 2px #dadada;
+	box-shadow: 0 -2px 2px #dadada;
+}
+#tabs li a {
+	font-family:Arial, Helvetica, sans-serif; 
+	font-size:13px;
+	font-weight:bold; 
+	color:#000000; 
+	padding:7px 14px 6px 12px; 
+	display:block; 
+	background:#FFFFFF;  
+	border-top-left-radius:3px; 
+	border-top-right-radius:3px; 
+	text-decoration:none;
+	background: -moz-linear-gradient(top, #ebebeb, white 10%);  
+	background: -webkit-gradient(linear, 0 0, 0 10%, from(#ebebeb), to(white));  
+	border-top: 1px solid white; 
+	text-shadow:-1px -1px 0 #fff;
+	outline:none;
+}
+
+#tabs li a.inactive{
+	padding-top:5px;
+	padding-bottom:5px;
+	color:#666666;
+	background: -moz-linear-gradient(top, #dedede, white 75%);  
+	background: -webkit-gradient(linear, 0 0, 0 75%, from(#dedede), to(white));  
+	border-top: 1px solid white; 
+}
+#tabs li a:hover, #tabs li a.inactive:hover {
+	border-top: 1px solid #dedede;
+	color:#000000;
+}
+
+
+.container{ 
+	clear:both; 	 	 
+	padding:10px 0px; 
+	width:500px; 
+	width:100%; 
+	/*background-color:#fff; */
+        background-color: #FFFACD;	
+        /* background-color:#dadada; */
+	text-align:left; 	 
+}
+
+
+#subscibedevents {
+        /*background:#dadada;*/
+}
+
+</style>
+
+  <script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<script src="javascript/logger.min.js"></script>
+<script>
+    Logger.useDefaults();
+</script>
+
+<script src="javascript/mqttws31.js" type="text/javascript"></script>
+
+<script src="cfg/config.js" type="text/javascript"></script>
+
+<script src="mqtt.js" type="text/javascript"></script>
+
+  </head>
+
+  <body>
+    <div data-role="page" id="index">
+        <div data-theme="b" data-role="header">
+                    <div data-theme="b" data-role="header">
+             <table><tr>
+                <td>
+                      <div id="total_kwGaugeContainer"> </div>
+                      <script src="javascript/gauge.js" type="text/javascript"></script>
+                      <script src="total_gauge.js" type="text/javascript"></script>
+                      <script>
+                         window.wpd3.gauge = new Gauge("total_kwGaugeContainer", window.wpd3.config_gauge);
+                         window.wpd3.gauge.configureNetNotify();
+                         window.wpd3.gauge.render();
+                         window.wpd3.gauge.renderNetNotify();
+                      </script>
+                </td>
+                <td><h1>Robot Remote Control </h1><h3>???</h3></td>
+             </tr></table>
+        </div>
+
+        </div>
+
+<ul id="tabs">
+      <li><a href="#tab1">Control</a></li>
+      <li><a href="#tab2">Diagnostics</a></li> 
+</ul>
+
+<div class="container" id="tab1">
+  <table style="border-style: groove">
+	<tr>
+	  <td>
+		<button id="camRefresh" class="camera" type="button"
+			onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/41','1');">Refresh</button>
+	  </td>
+	  <td align="center">
+		<button id="tiltUp" class="tilt" type="button"
+			onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/40','1');">Tilt Up</button>
+	  </td>
+	  <td></td>
+	</tr>
+	<tr>
+	  <td align="left">
+		<button id="panLeft" class="pan" type="button"
+			onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/42','1');">Pan Left</button>
+	  </td>
+	  <td align="center">
+		<ximg id="cam" src="http://192.168.1.163:8081/?Action=stream" alt="No Picture Available"> </ximg>
+	  </td>
+	  <td align="right">
+	        <button id="panRight" class="pan" type="button"
+			onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/43','1');">Pan Right</button>
+	  </td>		
+	</tr>
+	<tr>
+	  <td></td>
+	  <td align="center">
+		<button id="tiltDown" class="tilt" type="button"
+			onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/44','1');">Tilt Down</button>
+	  </td>
+	  <td></td>
+	</tr>				
+  </table>
+</div>
+<script src="tabTemplate.js"></script>
+<script>
+    window.wpd3.tabs["tab1"] = new tabTemplate("tab1",window.wpd3);
+</script>
+
+
+<div class="container" id="tab2"></div>
+<script>
+console.log("yyy:");
+    $("#tab2").load('mqtt.html');
+    window.wpd3.tabs["tab2"] = mqtt;
+console.log("yyy:");
+</script>
+
+</div>
+
+<script>
+$(document).ready(function() {	
+    //our script goes here...
+    $('#tabs li a:not(:first)').addClass('inactive');
+    $('.container:not(:first)').hide();
+
+    window.wpd3.active = "tab1";
+
+    $('#tabs li a').click(function(){
+        var t = $(this).attr('href');
+
+        if($(this).hasClass('inactive')) { //this is the start of our condition 
+            $('#tabs li a').addClass('inactive');		
+            $(this).removeClass('inactive');
+            $('.container').hide();
+            $(t).fadeIn('slow');
+
+            window.wpd3.active = ($(this).attr("href")).substring(1);
+
+            var ids = [];
+            window.wpd3.idlist.forEach (function (d) {ids.push(d.id)});
+
+            try {
+                try {
+                    (window.wpd3.tabs[window.wpd3.active].refresh)(ids,window.wpd3.tabs[window.wpd3.active]);
+                } catch (err) {
+                    Logger.info("No refresh() method for " + window.wpd3.active + ". Trying update() method instead ...");
+                    (window.wpd3.tabs[window.wpd3.active].update)(ids,window.wpd3.tabs[window.wpd3.active]);
+                }
+            }
+            catch (err) {
+                    Logger.error("Switching tab error for " + window.wpd3.active + " (" + window.wpd3.tabs + ") : " + err);
+                    Logger.error(err.stack);
+            }
+        }
+        return false;
+    })
+
+});
+console.log("QQQ");
+</script>
+
+  </body>
+</html>

@@ -1,0 +1,28 @@
+ <table>
+     <tr>
+        <td valign="top">
+            <table>
+                <tr>
+                    <td>
+                        <img id='statusIcon' src='images/failed.jpeg' style="border-style: groove"></img>
+                    </td>
+                </tr>
+                <tr>
+                    <td>MQTT Server: <input type='text' id='server' size="15" maxlength="15" disabled />:<input type='text' id='port' size="8" maxlength="8" disabled /></td>
+                </tr>
+                <tr><td>Topics: <input type='text' id='topic' disabled /></td></tr>
+                <tr><td>Status: <input type='text' id='status' size="45" disabled /></td></tr>
+		<tr><td>Notes: </td></tr>
+		<tr><td>Blue: connected to MQTT Server</td></tr>
+		<tr><td>Red: not connected to MQTT Server</td></tr>
+		<tr><td>Green: waiting for response</td></tr>
+            </table>
+        </td>
+        <td valign="top" style="border-style: groove;">
+            <H3>Subscribed events</h3>
+            <ul id='subscribedevents' style="font-family: 'Courier New', Courier, monospace;  width:400px;";></ul>
+	</td>
+    </tr>
+</table>
+
+
