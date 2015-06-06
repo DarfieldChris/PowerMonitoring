@@ -1,0 +1,37 @@
+#
+# config.yml - configuration file for python script mqtt.py
+#
+
+
+Mqtt:
+    Server: 192.168.1.163
+    #Server: 54.69.232.181
+    Port: 1883
+    Identity_pub: TDE_PUB
+    Identity_rcv: TDE_RCV
+    Topic: PMon
+
+SQL:
+    host: www.darfieldearthship.com
+    user: darfield_python
+    passwd: 1Python1!
+    db: darfield_development
+
+Arduino:
+    baud: 9600
+
+#
+# LOGGING CONFIGURATION
+#
+# use with: logging.config.dictConfig(yaml.load(open('logging.yaml', 'r')))
+#
+# log_level ... can be one of DEBUG, INFO, WARNING, ERROR, NONE
+#
+ 
+# Formatters detailed here: 
+#   http://docs.python.org/2/library/logging.html#logrecord-attributes
+
+logging:
+    root:
+      level: DEBUG
+
