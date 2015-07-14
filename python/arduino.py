@@ -28,6 +28,7 @@ from socket import AF_INET, SOCK_DGRAM
 #Local Application/Library Specific Imports
 import config
 import mqtt
+import ArdSchedule
 
 class UpdateDB(Thread):
 
@@ -84,9 +85,10 @@ class Calc(Thread):
         self.writer.writerow(headers)
 
 
-    def __init__(self, queueReadings, queueResults, fileCSV='data.csv'):
+    def __init__(self, cfg, queueReadings, queueResults, fileCSV='data.csv'):
         Thread.__init__(self)
 
+        self.cfg = cfg
         self.queueReadings = queueReadings
         self.queueResults = queueResults
         #self.timeRef = timeRef
@@ -118,27 +120,28 @@ class Calc(Thread):
                 _time = (int)(data[1])/1000 
                 _ts = time.time()
 
-                # accumulate kw-hrs
-                timeLastReading = self.readings.get(_id + "tlr", 0) 
-                if ( timeLastReading > 0 ):
-                    #self.kwhrs += self.ampsLastReading*(_time - timeLastReading)
-                    self.readings[_id + "kwhrs"] = self.readings.get(_id + "kwhrs", 0.0) + self.readings.get(_id + "alr",0.0001)*(_time - timeLastReading)
-                    #if (_time > self.timeNextHour):
-                    _timeNextHour = self.readings[_id + "tnh"]
-                    #if (_time > _timeNextHour):
-                    if ( _ts > _timeNextHour):
-                        # we have accumulated an hour of readings
-                        # what should I do with it?
-                        t = datetime.datetime.fromtimestamp(_timeNextHour - 3600 + 1).strftime('%Y-%m-%d %H:%M:%S')
-                        #self.kwhrs = self.kwhrs*240/3600*.001
-                        kwhrs = self.readings[_id + "kwhrs"]*240/3600*.001
-                        self.queueResults.put([_id,t,kwhrs])
+                if ( self.cfg.setdefault("Circuits." + _id + ".type", default="amps") == "amps" ) :
+                    # accumulate kw-hrs
+                    timeLastReading = self.readings.get(_id + "tlr", 0) 
+                    if ( timeLastReading > 0 ):
+                        #self.kwhrs += self.ampsLastReading*(_time - timeLastReading)
+                        self.readings[_id + "kwhrs"] = self.readings.get(_id + "kwhrs", 0.0) + self.readings.get(_id + "alr",0.0001)*(_time - timeLastReading)
+                        #if (_time > self.timeNextHour):
+                        _timeNextHour = self.readings[_id + "tnh"]
+                        #if (_time > _timeNextHour):
+                        if ( _ts > _timeNextHour):
+                            # we have accumulated an hour of readings
+                            # what should I do with it?
+                            t = datetime.datetime.fromtimestamp(_timeNextHour - 3600 + 1).strftime('%Y-%m-%d %H:%M:%S')
+                            #self.kwhrs = self.kwhrs*240/3600*.001
+                            kwhrs = self.readings[_id + "kwhrs"]*240/3600*.001
+                            self.queueResults.put([_id,t,kwhrs])
 
-                        # reset for the next hour of readings
-                        self.readings[_id + "tnh"] = _timeNextHour + 60*60
-                        self.readings[_id + "kwhrs"] = 0.0
-                else:
-                    self.readings[_id + "tnh"] = ( _ts // (60*60))*3600 + 60*60
+                            # reset for the next hour of readings
+                            self.readings[_id + "tnh"] = _timeNextHour + 60*60
+                            self.readings[_id + "kwhrs"] = 0.0
+                    else:
+                        self.readings[_id + "tnh"] = ( _ts // (60*60))*3600 + 60*60
 
                 # broadcast the most recent data if desired
                 if (self.broadcast_queue != None):
@@ -208,6 +211,8 @@ class Arduino(Thread) :
                  logging.warning("Failed to open serial port to Arduino.  Will retry in 5 seconds ...")
                  time.sleep(5)
 
+          #flush the serial connection to the Arduino before we start
+          self.ser.write('\n')
           self.ser.flushInput()
 
           try:
@@ -222,9 +227,9 @@ class Arduino(Thread) :
             # Check for data in the inbound queue
             if (self.queueTo and self.queueTo.qsize() > 0):
                 data = self.queueTo.get()
-                logging.debug("Sending to arduino: " + data[0] + ":" + data[1])
-                #self.ser.write(data[0]+':'+data[1]+'\n')
-                self.ser.write(data[0])
+                logging.info("Sending to arduino: " + data[0] + ":" + data[1])
+                self.ser.write(data[0]+':'+data[1]+'\n')
+                #self.ser.write(data[0])
                 
 
             # check for Arduino output:
@@ -273,12 +278,14 @@ if __name__ == "__main__":
 
     # create queues to pass data between the different threads
     queueArduino = Queue()
+    queueToArduino = Queue()
     queueDB = Queue()
     queueMqttPub = Queue()
 
     # Setup Mqtt client thread
     mqtt_client = mqtt.mqtt(cfg)
     mqtt_client.publish_queue = queueMqttPub
+    mqtt_client.on_msg_queue = queueToArduino
     mqtt_client.daemon = True
     mqtt_client.start()
 
@@ -287,11 +294,11 @@ if __name__ == "__main__":
     ports=glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*') + glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*")
     logging.info("Will connect to Arduino using ports: %s" % ports)
 
-    arduino = Arduino(cfg, ports=ports, queue=queueArduino)
+    arduino = Arduino(cfg, ports=ports, queueFromArduino=queueArduino, queueToArduino=queueToArduino)
  
     # setup calculation thread
-    threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB)
-    #threadCalc = Calc(queueReadings=queueArduino, queueResults=queueDB, timeRef = getNTPTime())
+    threadCalc = Calc(cfg, queueReadings=queueArduino, queueResults=queueDB)
+    #threadCalc = Calc(cfg, queueReadings=queueArduino, queueResults=queueDB, timeRef = getNTPTime())
     threadCalc.broadcast_queue = queueMqttPub
     threadCalc.daemon = True
     threadCalc.start()
@@ -300,6 +307,31 @@ if __name__ == "__main__":
     updateDB = UpdateDB(cfg, queueResults = queueDB)
     updateDB.daemon = True
     updateDB.start()
+
+    # setup arduino scheduler thread
+    def tick(name, state, queueToArduino):
+        queueToArduino.put([name, state])
+        logging.info("Tick: " + name + " - " + state)
+        #print('Tick! The time is: %s' % datetime.datetime.now())
+    ards = ArdSchedule.ArdSchedule(cfg,queueToArduino)
+
+    # set initial conditions of Arduino outputs
+    nr = datetime.datetime.now() + datetime.timedelta(seconds=15)
+    #logging.info("kk: " + nr)
+    if (datetime.datetime.now().hour > 6 and datetime.datetime.now().hour < 17 ) :
+        ards.scheduler.add_job(tick, 'date', run_date=nr, args=['HWTrelay', '0',queueToArduino])
+        #tick('HWTrelay', '0', queueToArduino)
+    else:
+        ards.scheduler.add_job(tick, 'date', run_date=nr, args=['HWTrelay', '1',queueToArduino])
+        #tick('HWTrelay', '1', queueToArduino)
+
+    #ards.scheduler.add_job(tick, 'interval', seconds=5, misfire_grace_time=12*60*60)
+    #ards.scheduler.add_job(tick, 'cron', day_of_week='mon-fri', hour=6, minute=30, misfire_grace_time=12*60*60)
+    ards.scheduler.add_job(tick, 'cron', hour='6', minute='30', args=['HWTrelay', '0',queueToArduino])
+    ards.scheduler.add_job(tick, 'cron', hour='17', minute='30', args=['HWTrelay', '1',queueToArduino])
+    ards.daemon = True
+    ards.start()
+
 
     # start main thread of execution
     try :

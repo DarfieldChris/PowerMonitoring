@@ -49,6 +49,7 @@ class mqtt(Thread):
         self.current_time = time.time()
 
         self.cfg = cfg
+        self.on_msg_queue = None
 
         # Figure out the details of the MQTT Server to talk to
         cfg.setdefault("Mqtt.Server", default = "localhost") 
