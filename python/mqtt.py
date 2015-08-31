@@ -32,9 +32,7 @@ import config
 class mqtt(Thread):
     """Class to connect/communicate with MQTT server"""
 
-    publish_queue = None
-
-    def __init__(self, cfg):
+    def __init__(self, cfg, publish_queue = None, on_msg_queue = None):
         """Class Constructor ... called when object instance created.
     
            Arguments:
@@ -44,16 +42,17 @@ class mqtt(Thread):
 
         Thread.__init__(self)
 
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = cfg.setLogging(self.__class__.__name__)
 
         self.current_time = time.time()
 
         self.cfg = cfg
-        self.on_msg_queue = None
-
+        self.on_msg_queue = on_msg_queue
+        self.publish_queue = publish_queue
+        
         # Figure out the details of the MQTT Server to talk to
         cfg.setdefault("Mqtt.Server", default = "localhost") 
-        cfg.setdefault("Mqtt.Port", default = "1883")
+        cfg.setdefault("Mqtt.Port", default = 1883)
         cfg.setdefault("Mqtt.Identity_pub", default = "xxx_PUB")
         cfg.setdefault("Mqtt.Identity_rcv", default = "xxx_RCV")
         #self.topicheader = topicheader+ '/' + self.ident
@@ -99,26 +98,24 @@ class mqtt(Thread):
     #
     # Method: run
     #
-    # Continuous loop to check status of Pi Inputs and report changes back to 
-    # minecraft server
+    # Continuous loop to check for outbound MQTT messages (do I need to
+    # publish anything)
     #
     # Arguments:
     #    self - pointer to self
     #
     def run(self):
-        #while self.mos.loop(10000) == 0:
+        
         while (True):
-            logging.debug("Checking ...")
+            self.logger.debug("Checking ...")
             self.mos.loop(0)
-            #self.mos.loop(0) == 0
             #self.logger.debug("Woke up ...")
 
             if (self.publish_queue != None ):
 
               try:
                 pub=self.publish_queue.get(True, 1)
-                logging.debug("Item in queue ...")
-                #Opt 1: Handle task here and call q.task_done()
+                self.logger.debug("Item in queue ...")
                 strHeader = self.cfg["Mqtt.Topic"] + "/" + \
                             self.cfg["Mqtt.Identity_pub"] + "/" + \
                             pub[0] + "/" + str(pub[1])
@@ -128,7 +125,7 @@ class mqtt(Thread):
                 # Store last readings in case anybody asks
                 self.data_points[pub[0]] = pub
 
-                logging.debug("Published msg: %s", strHeader)
+                self.logger.debug("Published msg: %s", strHeader)
 
               except Empty:
                 #Handle empty queue here
@@ -176,10 +173,6 @@ class mqtt(Thread):
     #
     def on_message(self, xxx,  obj, msg):
         self.logger.info("Msg received: %s - %s", msg.topic, msg.payload)
-        
-        #rm = self.outputRegex.match( msg.topic )
-        
-        #if rm != None:
 
         _topic = msg.topic.split("/")
         if ( _topic[len(_topic)-1] == "current" ):
@@ -193,7 +186,7 @@ class mqtt(Thread):
             for point in self.data_points:
                 pub = self.data_points[point]
                 strHeader = _str + pub[0] + "/" + str(pub[1])
-                self.logger.debug("Publishing(" + str(len(self.data_points)) +") " + strHeader + ": " + pub[2])
+                self.logger.debug("Publishing(" + str(len(self.data_points)) +") " + strHeader + ": " + str(pub[2]))
                 self.mos.publish(strHeader, pub[2])
 
         elif ( self.on_msg_queue != None ):
@@ -215,8 +208,7 @@ if __name__ == '__main__':
 
     queueMqttPub = Queue()
 
-    conn = mqtt(cfg)
-    conn.publish_queue = queueMqttPub
+    conn = mqtt(cfg, publish_queue = queueMqttPub)
     conn.daemon = True
     conn.start()
 
