@@ -227,6 +227,9 @@ class Meter(Thread) :
             time.sleep(1)
           except Exception:
             self.logger.warning("Failed to read the meter")
+            self.queue_readings.put(["8568062",
+                                     to_epoch_1970(id['TimeStamp']),
+                                     0])
             time.sleep(60)
         
 
