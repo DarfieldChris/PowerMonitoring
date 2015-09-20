@@ -103,13 +103,13 @@ mqtt.onMessageArrived = function onMessageArrived(message) {
         mqtt.Logger.debug("%s: %s - %d", arguments.callee.name, 
                          topic, message.payloadBytes.length);
 
-        	$('#subscribedevents').prepend('<li>' + topic + ' = ' + message.payloadString + '</li>');
+     	$('#subscribedevents').prepend('<li>' + topic + ' = ' + message.payloadString + '</li>');
 
-                var res = topic.split("/");
+        var res = topic.split("/");
 
-                // only pay attention if msg formatted properly
-                if ( res.length ==3 )
-                {
+        // only pay attention if msg formatted properly
+        if ( res.length ==3 )
+        {
                     if ( res[2] === "UP" )
                     {
                         mqtt.connected = true;
@@ -121,39 +121,53 @@ mqtt.onMessageArrived = function onMessageArrived(message) {
                         mqtt.connected = false;
                     }
                     return;
-                }
-                else if (res.length !== 4 ) return;
+        }
+        else if (res.length !== 4 ) return;
 
-                var _id = res[res.length-2];
-        	var payload = parseFloat( message.payloadString );
+        var _id = res[res.length-2];
+        var _date = new Date(res[res.length-1]*1000);
+        //var _date = new Date();
+        var payload = parseFloat( message.payloadString );
  
-               try {
-                // have we got a record for  this id?
-                mqtt.validateCircuit(_id);
+        try {
+            // check to see if this is a control message as opposed to an uctual update
+            if ( _id.indexOf("relay", _id.length - "relay".length) !== -1 )
+            {
+                       _id = _id.substr(0, _id.indexOf("relay") ); 
+                       mqtt.Logger.debug(arguments.callee.name + ": Relay control signal for " + _id);
+                       _d = mqtt.validateCircuit(_id);
+                       mqtt.addDataPoint(_id, _date, null);
+                       _d.relay = payload;
+            }
+            else
+            {
+                       // have we got a record for  this id?
+                       mqtt.validateCircuit(_id);
 
-                var new_point = mqtt.addDataPoint(_id, new Date(), payload);
+                       var new_point = mqtt.addDataPoint(_id, _date, payload);
 
-                mqtt.setNewMinMax(_id, new_point);
-                }
-                catch (err) {
+                       mqtt.setNewMinMax(_id, new_point);
+                       mqtt.Logger.debug (arguments.callee.name + " (NEW DATA): " + 
+                                          _id + ": " + new_point.val + "(" + 
+                                          new_point.date + ")");
+            }
+        }
+        catch (err) {
                     mqtt.Logger.error(arguments.callee.name + "(Setup Error): " + 
                                      err + "\n" + err.stack);
-                }
+        }
 
-                mqtt.Logger.debug (arguments.callee.name + " (NEW DATA): " + 
-                                  _id + ": " + new_point.val + "(" + 
-                                  new_point.date + ")");
-                window.wpd3.gauge.update();
+        window.wpd3.gauge.update();
 
-                try {
-                    (window.wpd3.tabs[window.wpd3.active].update)([_id], window.wpd3.tabs[window.wpd3.active]);
-                }
-                catch (err) {
-                       mqtt.Logger.error(arguments.callee.name + "(Update Error for " + 
-                                     window.wpd3.active + "): " + 
-                                     err + "\n" + err.stack);
-                }
-                mqtt.Logger.debug("%s: %s", arguments.callee.name, "Completed");
+        try {
+             (window.wpd3.tabs[window.wpd3.active].update)([_id], window.wpd3.tabs[window.wpd3.active]);
+        }
+        catch (err) {
+              mqtt.Logger.error(arguments.callee.name + "(Update Error for " + 
+                                window.wpd3.active + "): " + 
+                                err + "\n" + err.stack);
+        }
+        mqtt.Logger.debug("%s: %s", arguments.callee.name, "Completed");
 };
 
 mqtt.keepAlive = function keepAlive() {
@@ -226,35 +240,47 @@ mqtt.validateCircuit = function validateCircuit(_id)
         window.wpd3[_id].subtitle = "???";
         window.wpd3[_id].ranges = [5,10,15];
     }
+
+    return window.wpd3[_id];
 };
 
 mqtt.addDataPoint = function addDataPoint(_id, _date, _val)
 {
-                // create the new data point (for historical trend)
-                var new_point = {};
-                new_point.date = _date;
-                new_point.val  = _val;
+    mqtt.Logger.debug(arguments.callee.name +": " + window.wpd3[_id].id + " " + (window.wpd3[_id].id === "undefined"));
 
-                mqtt.Logger.debug(arguments.callee.name +": " + window.wpd3[_id].id + " " + (window.wpd3[_id].id === "undefined"));
-                // Even if we already have a record for the id is it initialized?
-                if ( typeof window.wpd3[_id].id === "undefined" )
-                {
+    // create the new data point (for historical trend)
+    var new_point = {};
+    new_point.date = _date;
+
+    // Even if we already have a record for the id is it initialized?
+    if ( typeof window.wpd3[_id].id === "undefined" )
+    {
                     window.wpd3[_id].id = _id;
                     window.wpd3[_id].visible = true;
                     window.wpd3.idlist.push(window.wpd3[_id]);
                     window.wpd3[_id].data = [];
                     window.wpd3[_id].min_max_dates = [];
                     window.wpd3[_id].max_val = 5.0;
+                    window.wpd3[_id].relay = 0;
+
+                    window.wpd3[_id].val = 0;
 
                     window.wpd3[_id].min_max_dates[0] = new_point.date;
                     window.wpd3[_id].min_max_dates[1] = new Date(new_point.date.getTime() +1*60*1000);
-                }
+    }
 
-                // store the new data point
-                window.wpd3[_id].val = _val;
-                window.wpd3[_id].data.push(new_point);
+    new_point.val  = window.wpd3[_id].val;
 
-                return new_point;
+    // store the new data point
+    if ( _val !== null )
+    {
+         new_point.val = _val;
+         window.wpd3[_id].val = _val;
+    }
+
+    window.wpd3[_id].data.push(new_point);
+
+    return new_point;
 };
 
 mqtt.setNewMinMax = function setNewMinMax(_id, new_point)

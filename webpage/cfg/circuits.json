@@ -1,4 +1,0 @@
-[
-  {"id":"HWT","title":"Hot Water Tank","subtitle":"Current - amps","ranges":[10,20,30],"measures":[0],"markers":[0]},
-  {"id":"STOVE","title":"Electric Stove","subtitle":"Current - amps","ranges":[10,20,30],"measures":[0],"markers":[0]}
-]

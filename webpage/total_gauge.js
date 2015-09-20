@@ -13,7 +13,9 @@ Gauge.prototype.getValue = function getValue()
 {
         var total = 0.0;
         for (i = 0; i < window.wpd3.idlist.length; i++) { 
-            total += window.wpd3.idlist[i].val;
+            if ( window.wpd3.idlist[i].title === "Total Residential" ) {
+                total += window.wpd3.idlist[i].val;
+            }
         }
 
 	return total;

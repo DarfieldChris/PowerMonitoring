@@ -232,7 +232,11 @@ function Gauge(placeholderName, configuration)
 	{
 		var pointerContainer = this.body.select(".pointerContainer");
 		
-		pointerContainer.selectAll("text").text(Math.round(value) + " amps");
+                if ( value < 10.0 ) {
+		    pointerContainer.selectAll("text").text(value.toFixed(2) + " kw");
+                } else {
+		    pointerContainer.selectAll("text").text(value.toFixed(1) + " kw");
+                }
 		
 		var pointer = pointerContainer.selectAll("path");
 		pointer.transition()

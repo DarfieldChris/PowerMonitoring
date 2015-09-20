@@ -153,7 +153,7 @@ function Lines(placeholder, cfg)
         .attr("x",0 - (this.height / 2))
         .attr("dy", ".5em")
         .style("text-anchor", "middle")
-        .text("amps");
+        .text("kw");
 
     // Add a title to the graph
     svg.append("text")
