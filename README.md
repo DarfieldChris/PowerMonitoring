@@ -19,3 +19,11 @@ Copyright 2015 Chris Newton (chris@darfieldearthship.com)
     You should have received a copy of the GNU General Public License
     along with PowerMonitoring.  If not, see <http://www.gnu.org/licenses/>.
 
+## Setup
+
+### Configuration Changes on the Raspberry Pi
+
+    - Your Raspberry Pi needs to be setup as a network time server client (NTS). (http://victorhurdugaci.com/raspberry-pi-sync-date-and-time/)
+    
+
+### Third party packages required:

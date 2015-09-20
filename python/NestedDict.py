@@ -29,7 +29,7 @@ class NestedDict(dict):
         else:
             key1 = index[0]
 
-        if ( key1 not in self ):
+        if ( key1 not in self or self[key1] == None):
                 self[key1] = NestedDict()
 
         if (len(index) > 1):
@@ -67,14 +67,19 @@ class NestedDict(dict):
                 key1 = int(index[1])
             else:
                 key1 = index[1]
-            dict.__setitem__(nested_dict, key1, val)
+
+            if ( nested_dict ):
+                dict.__setitem__(nested_dict, key1, val)
+            else:
+                self.logger.error("Cannot set key '" + key + "'. Improperly formed? (Check the config file)")
         else:         
             # this is a standard key of the form 'a' ... just behave normally
             dict.__setitem__(self, key, val)
             
         self.logger.debug("'%s' = %s", str(key), str(val))
 
-    def get (self, key, default=None):
+    def get (self, key, default=None, check_inherited=False):
+        #print( "key = " + str(key))
         index = str(key).rsplit(self.__SPLIT, 1)
 
         if (len(index) > 1):
@@ -84,13 +89,52 @@ class NestedDict(dict):
                 key1 = int(index[1])
             else:
                 key1 = index[1]
-            val = dict.get(nested_dict, key1, default)
+            #print( "nested_dict = " + str(nested_dict))
+            if nested_dict:
+                val = dict.get(nested_dict, key1, default)
+            else:
+                val = default
+
+            if ( check_inherited and val == default ) :
+                #print("check inherited")
+                # check in parent for non-default value
+                i_index = index[0].rsplit(self.__SPLIT, 1)
+                if ( len(i_index) > 1 ):
+                    val = self.get(i_index[0] + '.' + index[1], default, True)
+                else:
+                    val = self.get(index[1], default, True)
         else:
             val = dict.get(self,key,default)
 
         self.logger.debug("'%s' = %s", str(key), str(val))
 
         return val
+
+    #def get_inherited (self, key, default=None):
+    #    index = str(key).rsplit(self.__SPLIT, 1)
+    #
+    #    if (len(index) > 1):
+    #        # nested key of the form 'a.b.c' ... find the nested dict!!!
+    #        nested_dict = self.__get_nested_dict(index[0])
+    #        if (self.__IsInt(index[1])):
+    #            key1 = int(index[1])
+    #        else:
+    #            key1 = index[1]
+    #        val = dict.get(nested_dict, key1, default)
+    #
+    #        if ( val == default ) :
+    #            # check in parent for non-default value
+    #            i_index = index[0].rsplit(self.__SPLIT, 1)
+    #            if ( len(i_index) > 1 ):
+    #                val = self.get_inherited(i_index[0] + '.' + index[1], default)
+    #            else:
+    #                val = self.get_inherited(index[1], default)
+    #    else:
+    #        val = dict.get(self,key,default)
+    #
+    #    self.logger.debug("'%s' = %s", str(key), str(val))
+    #
+    #    return val
 
     def setdefault (self, key, default=None):
         index = str(key).rsplit(self.__SPLIT, 1)
