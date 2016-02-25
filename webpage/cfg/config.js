@@ -1,6 +1,6 @@
 mqtt = { 
     //host:  '216.57.180.140',	// hostname or IP address
-    host:  '192.168.1.171',	// hostname or IP address
+    host:  '192.168.1.121',	// hostname or IP address
     port:  7681,
     topic: 'PMon/TDE',	                // topic to subscribe to
     useTLS:false,

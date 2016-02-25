@@ -70,7 +70,41 @@ function Lines(placeholder, cfg)
                     .attr("class", "line")
                     .style("stroke", function() {
                         return d.color = _this.cfg.color(d.id); })
-                    .attr("d", _this.valueline(d.data));
+                    .attr("d", _this.valueline(d.data))
+        .on("mouseover", function(d) {
+            tt = d3.select("#lines_x_axis_tooltip");
+            _placeholder = tt.attr("_placeholder");
+            _this = window.wpd3.tabs[_placeholder];
+            console.log("XXX: %s - %s (%s, %s)", _this, _this.x, d3.event.pageX, d3.event.pageY);
+            tt
+              .transition()
+                .duration(200)
+                .style("opacity", .9);          
+            tt
+              .html("HI!!! - " + (d3.event.pageX-_this.margin.left) + "<br\>" + _this.x.invert(d3.event.pageX-_this.margin.left-30))
+              .style("left", (d3.event.pageX) + "px")
+              .style("top", (d3.event.pageY) + "px");
+            })
+        .on("mousemove", function(d) {
+            tt = d3.select("#lines_x_axis_tooltip");
+            _placeholder = tt.attr("_placeholder");
+            _this = window.wpd3.tabs[_placeholder];
+            console.log("YYY: %s - %s (%s, %s)", _this, _this.x, d3.event.pageX, d3.event.pageY);
+            tt
+              .transition()
+                .duration(200)
+                .style("opacity", .9);
+            tt
+              .html("HI!!! - " + (d3.event.pageX-_this.margin.left) + "<br\>" + _this.x.invert(d3.event.pageX-_this.margin.left-30))
+              .style("left", (d3.event.pageX) + "px")
+              .style("top", (d3.event.pageY) + "px");
+            })
+        .on("mouseout", function(d) {
+            tt = d3.select("#lines_x_axis_tooltip");
+            tt.transition()
+                .duration(500)
+                .style("opacity", 0);
+            });
             }
 
             d3.select("#_" + _this.placeholder)
@@ -131,12 +165,23 @@ function Lines(placeholder, cfg)
         .attr("transform", 
               "translate(" + this.margin.left + "," + this.margin.top + ")");
 
+
+    this.div = d3.select("#" + this.placeholder).append("div")	
+        .html("XXX")
+        .attr("id", "lines_x_axis_tooltip")
+        .attr("class", "tooltip")				
+        .attr("_marginLeft", this.margin.left)
+        .attr("_placeholder", this.placeholder)
+        .style("opacity", 0);
+
     // Add the X Axis
     svg.append("g")
+        .attr("id", this.placeholder)
         .attr("class", "x axis")
         .attr("transform", "translate(0," + this.height + ")")
         .call(this.xAxis)
        .append("text")
+        .attr("id", this.placeholder)
         .attr("y", (this.margin.bottom / 2))
         .attr("x", (this.width / 2))
         .attr("dy", "1.5em")
@@ -165,7 +210,4 @@ function Lines(placeholder, cfg)
         .style("text-decoration", "underline") 	
         .text("Real Time Power Consumption");
 
-    this.div = d3.select("#" + this.placeholder).append("div")	
-        .attr("class", "tooltip")				
-        .style("opacity", 0);
 }
