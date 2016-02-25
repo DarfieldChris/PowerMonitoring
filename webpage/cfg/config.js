@@ -1,6 +1,6 @@
 mqtt = { 
     //host:  '216.57.180.140',	// hostname or IP address
-    host:  '192.168.1.171',	// hostname or IP address
+    host:  '192.168.1.121',	// hostname or IP address
     port:  7681,
     topic: 'PMon/TDE',	                // topic to subscribe to
     useTLS:false,
@@ -32,33 +32,33 @@ window.wpd3 = {
     // Define circuits we might be looking at ...
     '8568062': {
         title:   "Total Residential",
-        subtitle:"Current - amps",
-        ranges: [20,40,60],
+        subtitle:"kwatts",
+        ranges: [3,6,9],
         not_stacked: true,
     },
 
     HWT: {
         title:   "Hot Water Tank",
-        subtitle:"Current - amps",
-        ranges: [10,20,30],
+        subtitle:"kwatts",
+        ranges: [3,6,9],
     },
 
     STOVE: {
         title:   "Electric Stove",
-        subtitle:"Current - amps",
-        ranges:  [15,25,40],
+        subtitle:"kwatts",
+        ranges: [3,6,9],
     },
 
     config_gauge: {
 	size: 200,
 	label: "CONSUMPTION",
 	min: 0,
-	max: 75,
-	minorTicks: 5,
-        majorTicks: 3,
-        greenZones: [{ from: 0, to: 25 }],
-        yellowZones: [{ from: 25, to: 50 }],
-        redZones: [{ from: 50, to: 75}],
+	max: 9,
+	minorTicks: 3,
+        majorTicks: 4,
+        greenZones: [{ from: 0, to: 3 }],
+        yellowZones: [{ from: 3, to: 6 }],
+        redZones: [{ from: 6, to: 9}],
     },
 };
 
@@ -119,5 +119,5 @@ Logger.setHandler(_myHandler);
 //  - INFO
 //  - WARN
 //  - ERROR
-Logger.setLevel(Logger.INFO);
+Logger.setLevel(Logger.DEBUG);
 

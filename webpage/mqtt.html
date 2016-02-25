@@ -16,6 +16,13 @@
 		<tr><td>Blue: connected to MQTT Server</td></tr>
 		<tr><td>Red: not connected to MQTT Server</td></tr>
 		<tr><td>Green: waiting for response</td></tr>
+
+                <tr><td>Hot Water Tank:
+		    <button id='HWT_on_btn' type="button"
+		        onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/HWTrelay','1');">ON</button>
+		    <button id='HWT_off_btn' type="button"
+		        onclick="mqtt.publish(mqtt.topic+'_RCV/ctl/HWTrelay','0');">OFF</button>
+		</td></tr>
             </table>
         </td>
         <td valign="top" style="border-style: groove;">

@@ -212,6 +212,8 @@ this.redraw = function redraw(data, _this)
             .style("fill", function() {
                 return d.color = _this.cfg.color(d.key); })
             .attr("x", function(d) {
+                // CSN - STACKING - uncommment next line
+                // return _this.x(d.DATE_TIME) + i*slice;
                 if (_this.DBQ[0].compare!=="") {
                     return _this.x(d.DATE_TIME) + i*slice;
                 } else {
@@ -225,6 +227,8 @@ this.redraw = function redraw(data, _this)
                     }
                 }
             })
+            // CSN - STACKING - UNcomment following line and comment next line 
+            //.attr("width", _this.x.rangeBand()/dataNest.length)
             .attr("width", _this.x.rangeBand()/(_this.DBQ[0].compare!==""?dataNest.length:1))
             .attr("y", function(d) { return _this.y(d.y_offset); })
             .attr("height", function(d) { return _this.height - _this.y(d.POWER_KWH); })
@@ -329,8 +333,9 @@ this.refresh = function refresh(_idlist, _this) {
     dataStack.forEach(function(d,i) {
         // UGLY - check to see if first column is
         // stacked is hard coded - CSN
-        _this.Logger.debug(d.values[0].CIRCUIT + " not_stacked =" + _this.cfg[d.values[0].CIRCUIT].not_stacked);
-        if (_this.cfg[d.values[0].CIRCUIT].not_stacked === true)
+        //_this.Logger.debug(d.values[0].CIRCUIT + " not_stacked =" + _this.cfg[d.values[0].CIRCUIT].not_stacked);
+
+        if (_this.cfg[d.values[0].CIRCUIT] && _this.cfg[d.values[0].CIRCUIT].not_stacked === true)
         {
             d.values[0].totals_column = 1;
         }
@@ -361,7 +366,7 @@ this.refresh = function refresh(_idlist, _this) {
       document.getElementById(_this.placeholder + "_toDate").value = this.DBQ[0].date_End;
       jQuery( "#" + _this._placeholder + "_toDate" ).datepicker( "option", "minDate",  _this.DBQ[0].date_Start);
       document.getElementById(_this.placeholder + "_intervalScale").value = _this.DBQ[0].interval;
-  //document.getElementById("compareDate").value = this.DBQ[0].compare;
+      document.getElementById(_this.placeholder + "_compareDate").value = this.DBQ[0].compare;
   } catch (err) {
       _this.Logger.warn(arguments.callee.name + ": Failed to update UI elements");
   }
