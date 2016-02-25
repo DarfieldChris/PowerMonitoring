@@ -3,8 +3,15 @@
 #
 
 
+Eagle:
+    addr: 192.168.1.113
+    port: 5002
+    debug: 0
+    timeout: 10
+
 Mqtt:
-    Server: 192.168.1.163
+    Server: localhost
+    #Server: 192.168.1.163
     #Server: 54.69.232.181
     Port: 1883
     Identity_pub: TDE_PUB
@@ -18,7 +25,17 @@ SQL:
     db: darfield_development
 
 Arduino:
-    baud: 9600
+    baud: 57600
+
+Circuits:
+    8568062:
+        type: kw
+    HWT:
+        type: kw
+    STOVE:
+        type: kw
+    HWTrelay:
+        type: relay
 
 #
 # LOGGING CONFIGURATION
@@ -32,6 +49,10 @@ Arduino:
 #   http://docs.python.org/2/library/logging.html#logrecord-attributes
 
 logging:
-    root:
-      level: DEBUG
+    level: INFO
+    Meter:
+      #level: DEBUG
+    mqtt: 
+      #level: DEBUG
+
 

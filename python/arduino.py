@@ -153,7 +153,7 @@ if __name__ == "__main__":
     ards.daemon = True
     ards.start()
 
-    meter = HydroMeter.Meter(cfg, queue_readings = queueReadings)
+    meter = HydroMeter.Meter(cfg, queue_readings = queueReadings, queue_db = queueDB )
     meter.daemon = True
     meter.start()
 

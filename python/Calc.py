@@ -69,6 +69,7 @@ class Calc(Thread):
             # broadcast the most recent data if desired
             if (self.broadcast_queue != None):
                 # Only broadcast if the reading has changed
+                #self.logger.info("FLOAT ?: %s", data[2])
                 if (self.readings.get(_id + "alr", 0.0001) != (float)(data[2])):
                     self.broadcast_queue.put ([_id, _ts, data[2]])
                 

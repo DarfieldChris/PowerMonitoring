@@ -6,6 +6,7 @@ from threading import Thread
 from Queue import Queue
 
 #Third Party Imports
+import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 
 #Local Application/Library Specific Imports
@@ -25,7 +26,12 @@ class ArdSchedule(Thread):
       self.queueToArduino = queueToArduino
       self.cfg = cfg
 
-      self.scheduler = BackgroundScheduler()
+      #self.scheduler = BackgroundScheduler()
+      #
+      # NOTE: this is REALLY confusing because it is working in UTC
+      #
+      self.scheduler = BackgroundScheduler(timezone = pytz.timezone('Canada/Pacific'))
+      #self.scheduler = BackgroundScheduler(timezone = time.tzname[1])
 
   def initialize(self):
     # set initial conditions of Arduino outputs
@@ -36,7 +42,8 @@ class ArdSchedule(Thread):
     else:
         self.scheduler.add_job(state_change, 'date', run_date=nr, args=['HWTrelay', '1',self.queueToArduino])
 
-    self.scheduler.add_job(state_change, 'cron', hour='6', minute='30', args=['HWTrelay', '0',self.queueToArduino])
+    #self.scheduler.add_job(state_change, 'cron', hour='6', minute='30', args=['HWTrelay', '0',self.queueToArduino])
+    self.scheduler.add_job(state_change, 'cron', hour='6', minute='00', args=['HWTrelay', '0',self.queueToArduino])
     self.scheduler.add_job(state_change, 'cron', hour='17', minute='30', args=['HWTrelay', '1',self.queueToArduino])                                     
   def run(self):
       self.scheduler.start()
